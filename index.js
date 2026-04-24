@@ -47,7 +47,7 @@ app.get("/check-country", async (req, res) => {
     const country = response.data.country;
 
     return res.json({
-      result: country === "Cape Verde",
+      result: country === "Cabo Verde",
       country,
       ip,
     });
