@@ -1,35 +1,63 @@
-const express = require('express');
-const axios = require('axios');
+const express = require("express");
+const axios = require("axios");
 
 const app = express();
 
-// Configuração para lidar com proxy, se necessário
-app.set('trust proxy', true);
+app.set("trust proxy", true);
 
-app.get('/check-country', async (req, res) => {
-    try {
-        // Pega o IP real do cliente
-        const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
+// 🔥 CORS global (CORRETO)
+app.use((req, res, next) => {
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("Access-Control-Allow-Methods", "GET,OPTIONS");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
 
-        // Consulta a API de geolocalização
-        const response = await axios.get(`http://ip-api.com/json/${ip}?fields=status,country`);
-        
-        if (response.data.status !== 'success') {
-            return res.status(500).json({ error: 'Não foi possível identificar o país' });
-        }
+  if (req.method === "OPTIONS") {
+    return res.sendStatus(200);
+  }
 
-        const country = response.data.country;
-        const result = country === 'Cabo Verde';
+  next();
+});
 
-        res.json({
-            result,
-            country,
-            ip
-        });
-    } catch (err) {
-        console.error('Erro ao identificar país:', err.message);
-        res.status(500).json({ error: 'Erro interno do servidor' });
+app.get("/check-country", async (req, res) => {
+  try {
+    // 🔥 IP correto (pega primeiro da lista)
+    const ip =
+      (req.headers["x-forwarded-for"] || "").split(",")[0] ||
+      req.socket.remoteAddress;
+
+    // ❌ proteção localhost
+    if (!ip || ip === "::1" || ip === "127.0.0.1") {
+      return res.json({
+        result: false,
+        country: "unknown",
+        ip,
+      });
     }
+
+    const response = await axios.get(
+      `http://ip-api.com/json/${ip}?fields=status,country`
+    );
+
+    if (response.data.status !== "success") {
+      return res.status(500).json({
+        error: "Não foi possível identificar o país",
+      });
+    }
+
+    const country = response.data.country;
+
+    return res.json({
+      result: country === "Cape Verde",
+      country,
+      ip,
+    });
+
+  } catch (err) {
+    console.error(err.message);
+    return res.status(500).json({
+      error: "Erro interno do servidor",
+    });
+  }
 });
 
 export default app;
